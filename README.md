@@ -12,11 +12,19 @@ run the folowing:
 
 client:
 
+`sh dev-build.sh`
+
+or
+
 `deno bundle --watch --config deno.json client.tsx client.js`
 
 ## then run the surver
 
 server:
 
-`deno run --unstable --allow-read=./ --allow-net=0.0.0.0:8080  --watch main.tsx`
+`sh dev-server.sh`
+
+or 
+
+`deno run --unstable --allow-read=./client.js --allow-net=0.0.0.0:8080  --watch main.tsx`
 
