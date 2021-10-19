@@ -1,4 +1,4 @@
-import { React, renderToString, useState, useEffect } from "./deps.ts"
+import { React, useState, useEffect } from "./client-deps.ts"
 
 export function App(props: { children?: JSX.Element }) {
 	return (<html>
@@ -43,9 +43,12 @@ export function EvDisplay() {
 		};
 
 		evs.onopen = (ev:Event) => {
-			console.log('hi');
+			console.log('opening');
 			console.log(ev);
 		};
+		evs.onerror=()=>{
+			console.log('An error occured')
+		}
 		return () => {
 			evs.close();
 		}

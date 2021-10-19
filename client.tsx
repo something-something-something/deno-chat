@@ -1,6 +1,6 @@
 import {App,MyButton,EvDisplay} from './components.tsx'
 
-import {React,renderToString,useState,ReactDOM} from "./deps.ts"
+import {React,useState,ReactDOM} from "./client-deps.ts"
 
 
 

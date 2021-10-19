@@ -51,7 +51,7 @@ const htmlTemplate=`
 <!doctype html> 
 <html>
 		<head>
-			<script type="module" src="client.js"></script>
+			<script type="module" src="/client.js"></script>
 		</head>
 		<body>
 			<div id="reactContainer"></div>
