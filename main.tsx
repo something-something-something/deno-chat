@@ -1,12 +1,37 @@
 //import { App, MyButton } from "./components.tsx";
 
 //import {React,renderToString} from "./deps.ts";
-
+import {DB,grantOrThrow} from "./deps.ts";
+import {hashPassword,verifyHashedPassword,generateApiKey} from './securityUtils.ts'
 const desc1={name:'read',path:'./client.js'} as const;
 const desc2={name:'net',host:'0.0.0.0:8080'} as const;
+const desc3 = { name: 'write', path: './chat.db' } as const;
+const desc4 = { name: 'read', path: './chat.db' } as const;
+const desc5 = { name: 'write', path: './chat.db-journal' } as const;
+const desc6 = { name: 'read', path: './chat.db-journal' } as const;
 
-await Deno.permissions.request(desc1);
-await Deno.permissions.request(desc2);
+await grantOrThrow(desc1, desc2, desc3, desc4,desc5,desc6);
+
+const db = new DB('./chat.db', { mode: 'write' });
+db.query('PRAGMA foreign_keys=ON');
+
+//get this working
+window.addEventListener('unload',(e)=>{
+	
+	console.log('closing db');
+	db.close();
+	console.log('deno exits');
+});
+
+window.addEventListener('load',(e)=>{
+	console.log('loaded')
+})
+//Deno.exit();
+//console.log(sodium.crypto_pwhash_OPSLIMIT_MODERATE)
+//console.log(sodium.crypto_pwhash_MEMLIMIT_MODERATE)
+
+
+
 
 // declare namespace JSX{
 // 	interface IntrinsicElements{
@@ -68,8 +93,10 @@ for await (const conn of server) {
 		const httpConn = Deno.serveHttp(conn);
 		for await (const requestEvent of httpConn) {
 			console.log("hello");
+			const request=requestEvent.request;
 			const url = new URL(requestEvent.request.url);
 			const path = url.pathname;
+			const pathParts=path.split('/').slice(1);
 			if (path === "/ev") {
 				let id=0;
 				let notifyer = (controller: ReadableStreamDefaultController) => {
@@ -118,6 +145,62 @@ for await (const conn of server) {
 				});
 				
 			}
+			//api routes
+			else if(pathParts.length==2&&pathParts[0]==='api'&&pathParts[1]==='genkey'&&requestEvent.request.method==='POST'){
+
+				let response=new Response(JSON.stringify({
+					status:'error',
+					errors:'hello'
+				}),{
+					status:401,
+					headers:{
+						"Content-Type": "text/json"
+					}
+				});
+				let isvalidJSON=false;
+
+				interface JSONRESPONSE{
+					name:string;
+					password:string
+				}
+				let validJSON:JSONRESPONSE|null=null;
+				
+				try{
+					validJSON=await request.json()
+					isvalidJSON=true;
+				}
+				catch(e){
+				}
+				if(isvalidJSON&&validJSON!==null){
+					console.log(validJSON)
+					let posibleUsers=db.query('SELECT hashedpass,id,name FROM users WHERE name=?',[validJSON.name]);
+					console.log(posibleUsers)
+					if(posibleUsers.length>0&& typeof posibleUsers[0][0]==='string'  && typeof posibleUsers[0][1]==='number' &&verifyHashedPassword(posibleUsers[0][0],validJSON.password)){
+						let key=generateApiKey();
+						console.log(key)
+						
+						db.query('INSERT INTO apikeys (userid,hashedkey) VALUES(?,?)',[ posibleUsers[0][1], hashPassword(key) ])
+						response=new Response(JSON.stringify({
+							status:'success',
+							data:{
+								apikey:key
+							}
+						}),{
+							status:200,
+							headers:{
+								"Content-Type": "text/json"
+							}
+						})
+						
+					}
+					
+				}
+				
+				
+				
+				
+				await requestEvent.respondWith(response)
+			}
 			else if(path==='/lis'){
 				await requestEvent.respondWith(new Response(htmlPage	,{headers: {
 					"Content-Type": "text/html"
@@ -129,9 +212,7 @@ for await (const conn of server) {
 					"Content-Type": "text/javascript"
 				}}));
 			}
-			else if(path==='/'){
-
-				
+			else if(['/','/login'].includes(path)){
 				await requestEvent.respondWith(new Response(htmlTemplate,{headers: {
 					"Content-Type": "text/html"
 				}}))

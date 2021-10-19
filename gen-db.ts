@@ -1,7 +1,5 @@
-import {DB,grantOrThrow,__sodium} from './deps.ts'
-await __sodium.ready;
-const sodium=__sodium;
-
+import {DB,grantOrThrow} from './deps.ts'
+import {hashPassword} from './securityUtils.ts'
 //await Deno.permissions.request(desc1);
 //await Deno.permissions.request(desc2);
 
@@ -12,15 +10,23 @@ async function setUp() {
 	const desc4 = { name: 'write', path: './chat.db-journal' } as const;
 	//console.log(sodium.crypto_pwhash_OPSLIMIT_MODERATE)
 	//console.log(sodium.crypto_pwhash_MEMLIMIT_MODERATE)
+
 	await grantOrThrow(desc1, desc2, desc3, desc4);
-	await Deno.remove('./chat.db');
+
+	try{
+		await Deno.remove('./chat.db');
+	}
+	catch(er){
+		console.log(er)
+	}
+
 	const db = new DB('./chat.db', { mode: 'create' });
 	db.query('PRAGMA foreign_keys=ON');
 	
 	db.query(`
 		CREATE TABLE users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT,
+			name TEXT UNIQUE,
 			hashedpass TEXT
 		)
 	`);
@@ -30,7 +36,7 @@ async function setUp() {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			userid INTEGER NOT NULL ,
 			hashedkey TEXT,
-			FOREIGN KEY(userid) REFERENCES user (id) ON UPDATE CASCADE ON DELETE CASCADE
+			FOREIGN KEY(userid) REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
 		)
 	`);
 
@@ -39,7 +45,7 @@ async function setUp() {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			starteruserid INTEGER NOT NULL ,
 			title TEXT,
-			FOREIGN KEY(starteruserid) REFERENCES user (id) ON UPDATE CASCADE
+			FOREIGN KEY(starteruserid) REFERENCES users (id) ON UPDATE CASCADE
 		)
 	`);
 
@@ -49,8 +55,8 @@ async function setUp() {
 			authorid INTEGER NOT NULL,
 			threadid INTEGER NOT NULL,
 			content TEXT,
-			FOREIGN KEY(authorid) REFERENCES user (id) ON UPDATE CASCADE,
-			FOREIGN KEY(threadid) REFERENCES user (id) ON UPDATE CASCADE
+			FOREIGN KEY(authorid) REFERENCES users (id) ON UPDATE CASCADE,
+			FOREIGN KEY(threadid) REFERENCES users (id) ON UPDATE CASCADE
 		)
 	`);
 
@@ -60,9 +66,7 @@ async function setUp() {
 	console.log('done');
 }
 
-function hashPassword(password:String){
-	return sodium.crypto_pwhash_str(password,sodium.crypto_pwhash_OPSLIMIT_MODERATE,sodium.crypto_pwhash_MEMLIMIT_MODERATE);
-}
+
 
 await setUp();
 Deno.exit();

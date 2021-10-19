@@ -59,3 +59,35 @@ export function EvDisplay() {
 
 	return <div>{mHTML}</div>
 }
+
+
+export function LoginForm(){
+	const [name,setName]=useState('');
+	const [password,setPassword]=useState('');
+	return <form onSubmit={async(ev)=>{
+		ev.preventDefault();
+		let res=await fetch('/api/genkey',{
+			method:'post',
+			body:JSON.stringify({
+				name:name,
+				password:password,
+			})
+		});
+		let rObj=await res.json()
+		if(res.status!==200){
+			alert('bad login')
+		}
+		else{
+			alert(rObj.data.apikey);
+		}
+		console.log(rObj);
+	}}>
+		<label>name<input value={name} onChange={(ev)=>{
+			setName(ev.target.value)
+		}} type="text"/></label>
+		<label>password<input value={password} onChange={(ev)=>{
+			setPassword(ev.target.value)
+		}} type="password"/></label>
+		<input type="submit"/>
+	</form>
+}
