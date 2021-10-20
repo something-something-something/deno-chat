@@ -236,7 +236,7 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 						int = setInterval(() => {
 							controller.enqueue(new TextEncoder().encode(':\n\n'));
 							console.log('event stream write')
-						}, 1000)
+						}, 10000)
 						myMessageTarget.addEventListener("blah", nf = notifyer(controller))
 
 
