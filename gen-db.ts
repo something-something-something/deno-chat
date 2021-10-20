@@ -34,6 +34,7 @@ async function setUp() {
 	db.query(`
 		CREATE TABLE apikeys (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			uuid TEXT UNIQUE,
 			userid INTEGER NOT NULL ,
 			hashedkey TEXT,
 			FOREIGN KEY(userid) REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
@@ -52,6 +53,7 @@ async function setUp() {
 	db.query(`
 		CREATE TABLE messages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			timestamp INTEGER NOT NULL,
 			authorid INTEGER NOT NULL,
 			threadid INTEGER NOT NULL,
 			content TEXT,

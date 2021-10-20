@@ -1,6 +1,7 @@
 
 {
 	"compilerOptions": {
-		"lib":["dom", "dom.iterable", "dom.asynciterable", "deno.ns"]
+		"types":["./patch-types.d.ts"],
+		"lib":["deno.ns","dom", "dom.iterable", "dom.asynciterable","deno.unstable" ]
 	}
 }

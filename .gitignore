@@ -1,2 +1,4 @@
 client.js
 chat.db
+chat.crt
+chat.key
