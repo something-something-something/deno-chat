@@ -12,7 +12,7 @@ const desc6 = { name: 'read', path: './chat.db-journal' } as const;
 const desc7 = { name: 'read', path: './chat.crt' } as const;
 const desc8 = { name: 'read', path: './chat.key' } as const;
 const desc9 = { name: 'net', host: '0.0.0.0:8081' } as const;
-await grantOrThrow(desc1, desc2, desc3, desc4, desc5, desc6, desc7, desc8,desc9);
+await grantOrThrow(desc1, desc2, desc3, desc4, desc5, desc6, desc7, desc8, desc9);
 
 const db = new DB('./chat.db', { mode: 'write' });
 db.query('PRAGMA foreign_keys=ON');
@@ -88,8 +88,8 @@ const htmlTemplate = `
 
 
 const server = Deno.listen({
-		port: 8080,
-	});
+	port: 8080,
+});
 serve(server);
 try {
 	const serverTls = Deno.listenTls({
@@ -102,7 +102,7 @@ try {
 }
 catch (e) {
 	console.log(e)
-	
+
 }
 console.log("hello");
 // for await (const conn of server) {
@@ -171,9 +171,9 @@ async function handle(conn: Deno.Conn) {
 		for await (const requestEvent of httpConn) {
 			console.log('new request')
 			//console.log(requestEvent)
-			if (requestEvent!==null ) {
-				(async () => { try{await hanndleRequest(requestEvent)}catch(e){console.log(e)} })();
-				
+			if (requestEvent !== null) {
+				(async () => { try { await hanndleRequest(requestEvent) } catch (e) { console.log(e) } })();
+
 			}
 			else {
 				console.log('null')
@@ -186,19 +186,19 @@ async function handle(conn: Deno.Conn) {
 	}
 
 }
-async function serve( server:Deno.Listener){
+async function serve(server: Deno.Listener) {
 	for await (const conn of server) {
-	console.log('new connection');
-	try {
-		console.log('handling conn');
-		(async () => { handle(conn); })();
-		console.log('ready for next connection');
+		console.log('new connection');
+		try {
+			console.log('handling conn');
+			(async () => { handle(conn); })();
+			console.log('ready for next connection');
+		}
+		catch (e) {
+			console.log(e)
+		}
+
 	}
-	catch (e) {
-		console.log(e)
-	}
-	
-}
 }
 
 
@@ -242,8 +242,13 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 
 					},
 					cancel() {
-						myMessageTarget.removeEventListener('blah', nf)
-						clearInterval(int);
+						try {
+							myMessageTarget.removeEventListener('blah', nf)
+							clearInterval(int);
+						}
+						catch (e) {
+							console.log(e)
+						}
 						console.log('event stream close')
 					},
 				}),
@@ -258,7 +263,7 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 					, status: 200
 				}),
 		).catch(() => {
-			
+
 			myMessageTarget.removeEventListener('blah', nf);
 			clearInterval(int);
 			console.log('event stream close')
