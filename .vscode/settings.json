@@ -5,6 +5,7 @@
 	"deno.config": "./deno.json",
 	"deno.suggest.imports.hosts": {
 		"https://esm.sh": false,
-		"https://cdn.skypack.dev": false
+		"https://cdn.skypack.dev": false,
+		"https://deno.land": false
 	}
 }

@@ -1,4 +1,4 @@
 client.js
 chat.db
-chat.crt
+chat.pem
 chat.key

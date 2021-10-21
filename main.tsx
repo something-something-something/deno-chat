@@ -91,19 +91,19 @@ const server = Deno.listen({
 	port: 8080,
 });
 serve(server);
-try {
-	const serverTls = Deno.listenTls({
-		certFile: './chat.crt',
-		keyFile: './chat.key',
-		port: 8081,
-		alpnProtocols: ['h2', "http/1.1"],
-	});
-	serve(serverTls);
-}
-catch (e) {
-	console.log(e)
+// try {
+// 	const serverTls = Deno.listenTls({
+// 		certFile: './chat.crt',
+// 		keyFile: './chat.key',
+// 		port: 8081,
+// 		alpnProtocols: ['h2', "http/1.1"],
+// 	});
+// 	serve(serverTls);
+// }
+// catch (e) {
+// 	console.log(e)
 
-}
+// }
 console.log("hello");
 // for await (const conn of server) {
 

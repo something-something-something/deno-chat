@@ -1,3 +1,3 @@
 #!/bin/bash
 
-deno run --allow-write=./chat.crt,./chat.key --location 'http://example.com' gen-cert.ts
+openssl req -x509 -nodes -batch -newkey rsa:4096 -days 15 -keyout chat.key -out chat.pem
