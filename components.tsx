@@ -38,7 +38,7 @@ export function EvDisplay() {
 
 				//let arr:Array<MessageInterface>=[...messages];
 				let obj = { data: ev.data }
-				setMessages([...messages].concat([obj]))
+				setMessages(  (m)=>{ return [...m].concat([obj])} )
 			}
 
 		};
@@ -53,7 +53,7 @@ export function EvDisplay() {
 		return () => {
 			evs.close();
 		}
-	})
+	},[])
 	let mHTML = messages.map((el) => {
 		let data=JSON.stringify(el)
 		return <div key={data}>{JSON.stringify(el)}</div>
