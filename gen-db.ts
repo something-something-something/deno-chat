@@ -53,12 +53,12 @@ async function setUp() {
 	db.query(`
 		CREATE TABLE messages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			timestamp INTEGER NOT NULL,
+			timestamp INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			authorid INTEGER NOT NULL,
 			threadid INTEGER NOT NULL,
 			content TEXT,
 			FOREIGN KEY(authorid) REFERENCES users (id) ON UPDATE CASCADE,
-			FOREIGN KEY(threadid) REFERENCES users (id) ON UPDATE CASCADE
+			FOREIGN KEY(threadid) REFERENCES threads (id) ON UPDATE CASCADE
 		)
 	`);
 

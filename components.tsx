@@ -1,4 +1,5 @@
 import { React, useState, useEffect } from "./client-deps.ts"
+import { getAuthInfo, storeAuthInfo, removeAuthInfo } from './clientUtils.ts'
 
 export function App(props: { children?: JSX.Element }) {
 	return (<html>
@@ -21,73 +22,112 @@ export function MyButton() {
 		setClickCount(clickCount + 1);
 	}}>Times clicked!: {clickCount}</button>
 }
-interface MessageInterface{
-	data:string;
-	id:string;
+interface MessageInterface {
+	data: string;
+
 }
 export function EvDisplay() {
-	const initArr:Array<MessageInterface>=[]
-	const [messages,setMessages]=useState(initArr);
+	const initArr: Array<MessageInterface> = []
+	const [messages, setMessages] = useState(initArr);
 	useEffect(() => {
-		let evs = new EventSource('/ev');
-		evs.onmessage = function (ev:MessageEvent) {
+		let evs = new EventSource('/eventstream/threads');
+		evs.onmessage = function (ev: MessageEvent) {
 			console.log('hi');
 			console.log(ev);
-			if(ev instanceof MessageEvent){
+			if (ev instanceof MessageEvent) {
 
 				//let arr:Array<MessageInterface>=[...messages];
-				let obj={data:ev.data,id:ev.lastEventId}
+				let obj = { data: ev.data }
 				setMessages([...messages].concat([obj]))
 			}
-			
+
 		};
 
-		evs.onopen = (ev:Event) => {
+		evs.onopen = (ev: Event) => {
 			console.log('opening');
 			console.log(ev);
 		};
-		evs.onerror=()=>{
+		evs.onerror = () => {
 			console.log('An error occured')
 		}
 		return () => {
 			evs.close();
 		}
 	})
-	let mHTML=messages.map((el)=>{
-		return <div key={el.id}>{JSON.stringify(el)}</div>
+	let mHTML = messages.map((el) => {
+		let data=JSON.stringify(el)
+		return <div key={data}>{JSON.stringify(el)}</div>
 	})
 
 	return <div>{mHTML}</div>
 }
 
 
-export function LoginForm(){
-	const [name,setName]=useState('');
-	const [password,setPassword]=useState('');
-	return <form onSubmit={async(ev)=>{
+export function LoginForm() {
+	const [name, setName] = useState('');
+	const [password, setPassword] = useState('');
+	return <form onSubmit={async (ev) => {
 		ev.preventDefault();
-		let res=await fetch('/api/genkey',{
-			method:'post',
-			body:JSON.stringify({
-				name:name,
-				password:password,
+		let res = await fetch('/api/genkey', {
+			method: 'post',
+			body: JSON.stringify({
+				name: name,
+				password: password,
 			})
 		});
-		let rObj=await res.json()
-		if(res.status!==200){
+		let rObj = await res.json()
+		if (res.status !== 200) {
 			alert('bad login')
 		}
-		else{
-			alert(rObj.data.apikey);
+		else {
+			console.log(JSON.stringify(rObj))
+			storeAuthInfo(rObj.data.apikey, rObj.data.uuid);
+			window.location.replace('/');
+			//alert(rObj.data.apikey);
 		}
 		console.log(rObj);
 	}}>
-		<label>name<input value={name} onChange={(ev)=>{
+		<label>name<input value={name} onChange={(ev) => {
 			setName(ev.target.value)
-		}} type="text"/></label>
-		<label>password<input value={password} onChange={(ev)=>{
+		}} type="text" /></label>
+		<label>password<input value={password} onChange={(ev) => {
 			setPassword(ev.target.value)
-		}} type="password"/></label>
-		<input type="submit"/>
+		}} type="password" /></label>
+		<input type="submit" />
+	</form>
+}
+
+export function LogOutButton() {
+	return <button onClick={() => {
+		removeAuthInfo();
+	}}>Log out</button>
+}
+
+export function NewThreadForm() {
+
+	const [title, setTitle] = useState('');
+	const [message, setMessage] = useState('');
+	let submitAction = async (ev: React.FormEvent) => {
+		//alert('hi')
+
+
+		ev.preventDefault();
+		let {apikey,uuid}=getAuthInfo();
+		await fetch('/api/createthread',{
+			method:'POST',
+			body:JSON.stringify({
+				apikey,
+				uuid,
+				data:{
+					title:title,
+					message:message
+				}
+			})
+		});
+	}
+	return <form onSubmit={submitAction}>
+		<label>Title:<input onChange={(ev) => { setTitle(ev.target.value) }} value={title} /></label>
+		<label>Message:<textarea onChange={(ev) => { setMessage(ev.target.value) }} value={message} /></label>
+		<input type="submit" />
 	</form>
 }
