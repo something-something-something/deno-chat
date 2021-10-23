@@ -1,10 +1,12 @@
 //import { App, MyButton } from "./components.tsx";
 
 //import {React,renderToString} from "./deps.ts";
-import { DB, grantOrThrow ,Row} from "./deps.ts";
+import { DB, grantOrThrow, Row } from "./deps.ts";
 
-import {EventStream,EventStreamTarget} from './eventStream.ts'
-import { hashPassword, verifyHashedPassword, generateApiKey, getApiKeyStatus ,isValidAuthRequest} from './securityUtils.ts'
+import { EventStream, EventStreamTarget } from './eventStream.ts'
+import { hashPassword, verifyHashedPassword, generateApiKey, getApiKeyStatus, isValidAuthRequest } from './securityUtils.ts'
+
+import { ThreadEventData, StandardAPIRequest, MessageAddAPIRequest } from './apiInterfaces.ts';
 const desc1 = { name: 'read', path: './client.js' } as const;
 const desc2 = { name: 'net', host: '0.0.0.0:8080' } as const;
 const desc3 = { name: 'write', path: './chat.db' } as const;
@@ -49,7 +51,10 @@ class MessageTarget extends EventTarget {
 }
 let myMessageTarget = new MessageTarget();
 
-let threadTarget=new EventStreamTarget();
+let threadTarget = new EventStreamTarget();
+
+let messageTarget = new EventStreamTarget();
+
 
 const htmlPage = `
 <!doctype html>
@@ -364,7 +369,7 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 					status: 'success',
 					errors: [],
 					data: keyStatus
-				}),{
+				}), {
 					status: 200,
 					headers: {
 						"Content-Type": "text/json"
@@ -376,10 +381,56 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 		console.log('apiket status')
 		await requestEvent.respondWith(resp);
 	}
-	else if(pathParts.length == 2 && pathParts[0] === 'api' && pathParts[1] === 'createthread' && requestEvent.request.method === 'POST'){
-		let authStatus=await isValidAuthRequest(db,request.clone());
-		if(authStatus.valid===false){
-			await requestEvent.respondWith( new Response(JSON.stringify({
+	else if (path === '/api/sendmessage' && request.method === 'POST') {
+		let authStatus = await isValidAuthRequest(db, request.clone());
+		if (authStatus.valid === false) {
+			return;
+		}
+		try {
+			let reqJSON = await request.json();
+			let reqData: MessageAddAPIRequest = reqJSON;
+			let getThread = db.query('SELECT id,title from threads where id=?', [reqData.data.threadid]);
+			if (getThread.length === 1 && typeof getThread[0][0] === 'number') {
+				let time = Date.now();
+				let messageInsert = db.query('INSERT INTO messages (content,authorid,threadid,timestamp) VALUES(?,?,?,?) RETURNING id', [reqData.data.content, authStatus.userid, getThread[0][0], time]);
+
+				messageTarget.sendMessage(getThread[0][0].toString(), {
+					threadid: getThread[0][0],
+					messageid: messageInsert[0][0],
+					content: reqData.data.content,
+					userid: authStatus.userid,
+					timestamp: time,
+				});
+				//todo notify thread
+
+				await requestEvent.respondWith(new Response(
+					JSON.stringify({
+						status: 'success',
+						data: {
+							messageid: messageInsert[0][0]
+						}
+					})
+					, {
+						status: 200,
+						headers: {
+							"Content-Type": "text/json"
+						}
+					}))
+			}
+		}
+		catch (e) {
+
+		}
+
+
+
+
+	}
+
+	else if (pathParts.length == 2 && pathParts[0] === 'api' && pathParts[1] === 'createthread' && requestEvent.request.method === 'POST') {
+		let authStatus = await isValidAuthRequest(db, request.clone());
+		if (authStatus.valid === false) {
+			await requestEvent.respondWith(new Response(JSON.stringify({
 				status: 'error',
 				errors: [],
 				data: {
@@ -395,26 +446,32 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 			return;
 
 		}
-		try{
-			let json=await request.json();
+		try {
+			let json = await request.json();
 
-			if('data' in json && 'title' in json.data && typeof json.data.title==='string' && 'message' in json.data && typeof json.data.message==='string'&& authStatus.valid===true){
-				let createdThread:Row[]=db.query('INSERT INTO threads (title,starteruserid) VALUES(?,?) RETURNING id',[json.data.title,authStatus.userid]);
-				if(typeof createdThread[0][0] ==='number'){
-					let createdMessage=db.query('INSERT INTO messages (content,authorid,threadid) VALUES(?,?,?)',[json.data.message,authStatus.userid,createdThread[0][0]]);
-					threadTarget.sendMessage('newThread',{
-						threadid:createdThread[0][0],
-						title:json.data.title,
-						message:json.data.message,
-						creator:authStatus.userid
+			if ('data' in json && 'title' in json.data && typeof json.data.title === 'string' && 'message' in json.data && typeof json.data.message === 'string' && authStatus.valid === true) {
+				let createdThread: Row[] = db.query('INSERT INTO threads (title,starteruserid) VALUES(?,?) RETURNING id', [json.data.title, authStatus.userid]);
+				if (typeof createdThread[0][0] === 'number') {
+					let createdMessage = db.query('INSERT INTO messages (content,authorid,threadid,timestamp) VALUES(?,?,?,?)', [json.data.message, authStatus.userid, createdThread[0][0], Date.now()]);
+
+					//let threadData = db.query(`SELECT `, [createdThread[0][0]])
+					// let dataToSend:ThreadEventData={
+
+
+					// }
+					threadTarget.sendMessage('newThread', {
+						threadid: createdThread[0][0],
+						title: json.data.title,
+						message: json.data.message,
+						creator: authStatus.userid
 					})
 					await requestEvent.respondWith(new Response(JSON.stringify({
 						status: 'success',
 						errors: [],
 						data: {
-							threadid:createdThread[0][0]
+							threadid: createdThread[0][0]
 						}
-					}),{
+					}), {
 						status: 200,
 						headers: {
 							"Content-Type": "text/json"
@@ -422,13 +479,13 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 					}));
 					return;
 				}
-				
+
 			}
 		}
-		catch(e){
+		catch (e) {
 			console.log(e)
 		}
-		await requestEvent.respondWith( new Response(JSON.stringify({
+		await requestEvent.respondWith(new Response(JSON.stringify({
 			status: 'error',
 			errors: [],
 			data: {
@@ -442,11 +499,22 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 		}))
 	}
 
-	else if(path==='/eventstream/threads'){
-		let eventStream=new EventStream([{eventStreamTarget:threadTarget,targetType:'newThread'}]);
-		await requestEvent.respondWith(eventStream.generateResponse()).catch(()=>{
+	else if (path === '/eventstream/threads') {
+		let eventStream = new EventStream([{ eventStreamTarget: threadTarget, targetType: 'newThread' }]);
+		await requestEvent.respondWith(eventStream.generateResponse()).catch(() => {
 			eventStream.stopBrodcast();
 		})
+	}
+	else if (path === '/eventstream/messages') {
+		//TODO check if 
+		let threadid=url.searchParams.get('threadid');
+		if (threadid!==null) {
+			let eventStream = new EventStream([{ eventStreamTarget: messageTarget, targetType:threadid }]);
+			await requestEvent.respondWith(eventStream.generateResponse()).catch(() => {
+				eventStream.stopBrodcast();
+			})
+		}
+
 	}
 	else if (path === '/lis') {
 		await requestEvent.respondWith(new Response(htmlPage, {
@@ -463,7 +531,7 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 			}
 		}));
 	}
-	else if (['/', '/login'].includes(path)) {
+	else if (['/', '/login','/chat'].includes(path)) {
 		await requestEvent.respondWith(new Response(htmlTemplate, {
 			headers: {
 				"Content-Type": "text/html"

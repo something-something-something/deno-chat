@@ -1,4 +1,4 @@
-import { App, MyButton, EvDisplay, LoginForm,LogOutButton ,NewThreadForm} from './components.tsx'
+import { App, MyButton, EvDisplay, LoginForm,LogOutButton ,NewThreadForm,Chat} from './components.tsx'
 
 import { React, useState, ReactDOM } from "./client-deps.ts"
 
@@ -18,6 +18,13 @@ if (url.pathname === '/login') {
 		<LogOutButton/>
 		<br/>
 		<LoginForm />
+	</>
+}
+else if (url.pathname === '/chat') {
+	defaultReact = <>
+		<LogOutButton/>
+		<br/>
+		<Chat/>
 	</>
 }
 //to do figure out when to load

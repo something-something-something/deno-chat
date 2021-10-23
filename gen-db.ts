@@ -53,7 +53,7 @@ async function setUp() {
 	db.query(`
 		CREATE TABLE messages (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			timestamp INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			timestamp INTEGER NOT NULL,
 			authorid INTEGER NOT NULL,
 			threadid INTEGER NOT NULL,
 			content TEXT,

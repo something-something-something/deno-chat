@@ -1,5 +1,7 @@
 import { React, useState, useEffect } from "./client-deps.ts"
 import { getAuthInfo, storeAuthInfo, removeAuthInfo } from './clientUtils.ts'
+import { MessageAddAPIRequest } from './apiInterfaces.ts'
+
 
 export function App(props: { children?: JSX.Element }) {
 	return (<html>
@@ -38,7 +40,7 @@ export function EvDisplay() {
 
 				//let arr:Array<MessageInterface>=[...messages];
 				let obj = { data: ev.data }
-				setMessages(  (m)=>{ return [...m].concat([obj])} )
+				setMessages((m) => { return [...m].concat([obj]) })
 			}
 
 		};
@@ -53,10 +55,13 @@ export function EvDisplay() {
 		return () => {
 			evs.close();
 		}
-	},[])
+	}, [])
 	let mHTML = messages.map((el) => {
-		let data=JSON.stringify(el)
-		return <div key={data}>{JSON.stringify(el)}</div>
+		let data = JSON.stringify(el)
+
+		let objData=JSON.parse(el.data);
+		
+		return <div key={data}>{JSON.stringify(el)} <a href={'/chat?threadid='+objData.threadid}>GO to thread</a></div>
 	})
 
 	return <div>{mHTML}</div>
@@ -112,15 +117,15 @@ export function NewThreadForm() {
 
 
 		ev.preventDefault();
-		let {apikey,uuid}=getAuthInfo();
-		await fetch('/api/createthread',{
-			method:'POST',
-			body:JSON.stringify({
+		let { apikey, uuid } = getAuthInfo();
+		await fetch('/api/createthread', {
+			method: 'POST',
+			body: JSON.stringify({
 				apikey,
 				uuid,
-				data:{
-					title:title,
-					message:message
+				data: {
+					title: title,
+					message: message
 				}
 			})
 		});
@@ -130,4 +135,81 @@ export function NewThreadForm() {
 		<label>Message:<textarea onChange={(ev) => { setMessage(ev.target.value) }} value={message} /></label>
 		<input type="submit" />
 	</form>
+}
+
+export function Chat() {
+	const initArr: Array<MessageInterface> = []
+	const [messages, setMessages] = useState(initArr);
+	let url = new URL(window.location.href);
+	let threadid = url.searchParams.get('threadid');
+	useEffect(() => {
+
+
+		let evs = new EventSource('/eventstream/messages?threadid=' + threadid);
+		evs.onmessage = function (ev: MessageEvent) {
+			console.log('hi');
+			console.log(ev);
+			if (ev instanceof MessageEvent) {
+
+				//let arr:Array<MessageInterface>=[...messages];
+				let obj = { data: ev.data }
+				setMessages((m) => { return [...m].concat([obj]) })
+			}
+
+		};
+
+		evs.onopen = (ev: Event) => {
+			console.log('opening');
+			console.log(ev);
+		};
+		evs.onerror = () => {
+			console.log('An error occured')
+		}
+		return () => {
+			evs.close();
+		}
+	}, []);
+
+	let log = messages.map((el) => {
+		return <div key={el.data}>{el.data}</div>
+	});
+	return <>
+		{log}
+		{threadid!==null?
+		<PostMessagesForm threadid={threadid}/>:<div>NOT VALID THREAD</div>
+		}
+		
+	</>
+}
+
+export function PostMessagesForm(props: { threadid: string }) {
+	const [message, setMessage] = useState('');
+
+	let sendMessage = async (ev: React.FormEvent) => {
+		ev.preventDefault();
+		let { apikey, uuid } = getAuthInfo();
+		let threadidNum=parseInt(props.threadid);
+		if (apikey!==null&&uuid!==null&&!isNaN(threadidNum)) {
+			let reqData: MessageAddAPIRequest = {
+				uuid,
+				apikey,
+				data:{
+					threadid:threadidNum,
+					content:message
+				}
+			}
+			let res = await fetch('/api/sendmessage', {
+				method: 'POST',
+				body:JSON.stringify(reqData)
+			});
+			if (res.status === 200) {
+				setMessage('');
+			}
+		}
+
+	}
+	return (<form onSubmit={sendMessage}>
+		<label>Message:<textarea onChange={(ev) => { setMessage(ev.target.value) }} value={message} /></label>
+		<input type="submit" />
+	</form>)
 }
