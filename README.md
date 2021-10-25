@@ -39,7 +39,7 @@ or
 
 `deno run --unstable --allow-read=./client.js,./chat.db,./chat.db-journal,./chat.crt,./chat.key --allow-write=./chat.db,./chat.db-journal --allow-net=0.0.0.0:8080,0.0.0.0:8081  --watch main.tsx`
 
-You can log in with the username `blah` and password `myPassword` at http://127.0.0.1/login
+You can log in with the username `blah` and password `myPassword` at http://127.0.0.1:8080/login
 
 ## (Optional) Using an http2 proxy
 Optionaly if `nghttpx` and `openssl` ar installed one can run 
