@@ -6,7 +6,7 @@ import { DB, grantOrThrow, Row } from "./deps.ts";
 import { EventStream, EventStreamTarget } from './eventStream.ts'
 import { hashPassword, verifyHashedPassword, generateApiKey, getApiKeyStatus, isValidAuthRequest } from './securityUtils.ts'
 
-import { ThreadEventData, StandardAPIRequest, MessageAddAPIRequest } from './apiInterfaces.ts';
+import { ThreadEventData, MessageEventData,StandardAPIRequest, MessageAddAPIRequest } from './apiInterfaces.ts';
 const desc1 = { name: 'read', path: './client.js' } as const;
 const desc2 = { name: 'net', host: '0.0.0.0:8080' } as const;
 const desc3 = { name: 'write', path: './chat.db' } as const;
@@ -392,16 +392,78 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 			let getThread = db.query('SELECT id,title from threads where id=?', [reqData.data.threadid]);
 			if (getThread.length === 1 && typeof getThread[0][0] === 'number') {
 				let time = Date.now();
-				let messageInsert = db.query('INSERT INTO messages (content,authorid,threadid,timestamp) VALUES(?,?,?,?) RETURNING id', [reqData.data.content, authStatus.userid, getThread[0][0], time]);
+				let messageInsert = db.query<[number]>('INSERT INTO messages (content,authorid,threadid,timestamp) VALUES(?,?,?,?) RETURNING id', [reqData.data.content, authStatus.userid, getThread[0][0], time]);
 
-				messageTarget.sendMessage(getThread[0][0].toString(), {
-					threadid: getThread[0][0],
-					messageid: messageInsert[0][0],
-					content: reqData.data.content,
-					userid: authStatus.userid,
-					timestamp: time,
-				});
-				//todo notify thread
+
+
+				// messageTarget.sendMessage(getThread[0][0].toString(), {
+				// 	threadid: getThread[0][0],
+				// 	messageid: messageInsert[0][0],
+				// 	content: reqData.data.content,
+				// 	userid: authStatus.userid,
+				// 	timestamp: time,
+				// });
+				
+				
+				let threadSQLResponse=db.query<[
+					number,string,
+					number,string,
+					number,string,number,
+						number,string,
+					number,string,number,
+						number,string,
+				]>(`
+				SELECT threads.id,threads.title,
+					u.id,u.name, 
+					fm.id,fm.content,fm.timestamp,
+						uf.id,uf.name, 
+					lm.id,lm.content,lm.timestamp,
+						ul.id,ul.name
+				from threads join messages as fm on fm.threadid=threads.id join messages as lm on threads.id=lm.threadid join users as u on threads.starteruserid=u.id join users as uf on  fm.authorid=uf.id join users as ul on  lm.authorid=ul.id
+				where
+					threads.id=:thethread and
+					fm.threadid=:thethread and
+					fm.timestamp = ( 
+						SELECT MIN(fmin.timestamp) from messages as fmin
+							where fmin.threadid=:thethread
+					) and
+					lm.id=:themessage
+				`,{thethread:getThread[0][0],themessage:messageInsert[0][0]});
+				let thread=threadSQLResponse[0];
+				let threadData:ThreadEventData={
+					id:thread[0],
+					title:thread[1],
+					startedBy:{
+						id:thread[2],
+						name:thread[3]
+					},
+					firstMessage:{
+						id:thread[4],
+						content:thread[5],
+						timestamp:thread[6],
+						user:{
+							id:thread[7],
+							name:thread[8]
+						},
+						threadid:thread[0],
+						threadTitle:thread[1]
+					},
+					lastMessage:{
+						id:thread[9],
+						content:thread[10],
+						timestamp:thread[11],
+						user:{
+							id:thread[12],
+							name:thread[13]
+						},
+						threadid:thread[0],
+						threadTitle:thread[1]
+					}
+				}
+				//Not A new thread Should this use a diffrent type or shoul type change to more generic?
+				threadTarget.sendMessage('newThread', threadData)
+				messageTarget.sendMessage(getThread[0][0].toString(),threadData.lastMessage)
+
 
 				await requestEvent.respondWith(new Response(
 					JSON.stringify({
@@ -459,12 +521,70 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 
 
 					// }
-					threadTarget.sendMessage('newThread', {
-						threadid: createdThread[0][0],
-						title: json.data.title,
-						message: json.data.message,
-						creator: authStatus.userid
-					})
+
+					let threadSQLResponse=db.query<[
+						number,string,
+						number,string,
+						number,string,number,
+							number,string,
+						number,string,number,
+							number,string,
+					]>(`
+					SELECT threads.id,threads.title,
+						u.id,u.name, 
+						fm.id,fm.content,fm.timestamp,
+							uf.id,uf.name, 
+						lm.id,lm.content,lm.timestamp,
+							ul.id,ul.name
+					from threads join messages as fm on fm.threadid=threads.id join messages as lm on threads.id=lm.threadid join users as u on threads.starteruserid=u.id join users as uf on  fm.authorid=uf.id join users as ul on  lm.authorid=ul.id
+					where
+						threads.id=:thethread and
+						fm.threadid=:thethread and
+						lm.threadid=:thethread and 
+						fm.timestamp = ( 
+							SELECT MIN(fmin.timestamp) from messages as fmin
+								where fmin.threadid=:thethread
+						) and
+						lm.timestamp = (
+							SELECT max(lmax.timestamp) from messages as lmax 
+								where lmax.threadid=:thethread
+						)
+					`,{thethread:createdThread[0][0]});
+					//TODO check length
+					let thread=threadSQLResponse[0];
+					let threadData:ThreadEventData={
+						id:thread[0],
+						title:thread[1],
+						startedBy:{
+							id:thread[2],
+							name:thread[3]
+						},
+						firstMessage:{
+							id:thread[4],
+							content:thread[5],
+							timestamp:thread[6],
+							user:{
+								id:thread[7],
+								name:thread[8]
+							},
+							threadid:thread[0],
+							threadTitle:thread[1]
+						},
+						lastMessage:{
+							id:thread[9],
+							content:thread[10],
+							timestamp:thread[11],
+							user:{
+								id:thread[12],
+								name:thread[13]
+							},
+							threadid:thread[0],
+							threadTitle:thread[1]
+						}
+					}
+				
+
+					threadTarget.sendMessage('newThread', threadData)
 					await requestEvent.respondWith(new Response(JSON.stringify({
 						status: 'success',
 						errors: [],
@@ -500,7 +620,76 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 	}
 
 	else if (path === '/eventstream/threads') {
-		let eventStream = new EventStream([{ eventStreamTarget: threadTarget, targetType: 'newThread' }]);
+
+
+		let prevThreadsTarget=new EventStreamTarget();
+		let eventStream = new EventStream([{ eventStreamTarget: threadTarget, targetType: 'newThread' },{eventStreamTarget:prevThreadsTarget,targetType:'previousThreads'}]);
+
+		let allThreads=db.query<[
+			number,string,
+			number,string,
+			number,string,number,
+				number,string,
+			number,string,number,
+				number,string,
+		]>(`
+		SELECT threads.id,threads.title,
+			u.id,u.name, 
+			fm.id,fm.content,fm.timestamp,
+				uf.id,uf.name, 
+			lm.id,lm.content,lm.timestamp,
+				ul.id,ul.name
+		from threads join messages as fm on fm.threadid=threads.id join messages as lm on threads.id=lm.threadid join users as u on threads.starteruserid=u.id join users as uf on  fm.authorid=uf.id join users as ul on  lm.authorid=ul.id
+		where
+			fm.threadid=threads.id and
+			lm.threadid=threads.id and 
+			fm.timestamp = ( 
+				SELECT MIN(fmin.timestamp) from messages as fmin
+					where fmin.threadid=threads.id
+			) and
+			lm.timestamp = (
+				SELECT max(lmax.timestamp) from messages as lmax 
+					where lmax.threadid=threads.id
+			)
+		`)
+		let prevThreads:ThreadEventData[]=allThreads.map((thread)=>{
+			return {
+				id:thread[0],
+				title:thread[1],
+				startedBy:{
+					id:thread[2],
+					name:thread[3]
+				},
+				firstMessage:{
+					id:thread[4],
+					content:thread[5],
+					timestamp:thread[6],
+					user:{
+						id:thread[7],
+						name:thread[8]
+					},
+					threadid:thread[0],
+					threadTitle:thread[1]
+				},
+				lastMessage:{
+					id:thread[9],
+					content:thread[10],
+					timestamp:thread[11],
+					user:{
+						id:thread[12],
+						name:thread[13]
+					},
+					threadid:thread[0],
+					threadTitle:thread[1]
+				}
+			}
+		})
+		//console.log(prevThreads);
+		prevThreads.forEach((t)=>{
+			prevThreadsTarget.sendMessage('previousThreads',t);
+		})
+		
+		
 		await requestEvent.respondWith(eventStream.generateResponse()).catch(() => {
 			eventStream.stopBrodcast();
 		})
@@ -508,8 +697,39 @@ async function hanndleRequest(requestEvent: Deno.RequestEvent) {
 	else if (path === '/eventstream/messages') {
 		//TODO check if 
 		let threadid=url.searchParams.get('threadid');
-		if (threadid!==null) {
-			let eventStream = new EventStream([{ eventStreamTarget: messageTarget, targetType:threadid }]);
+		if (threadid!==null&&!isNaN(parseInt(threadid,10))) {
+			
+			let threadidNum:number=parseInt(threadid,10)
+			let prevMessageTarget=new EventStreamTarget();
+
+			let eventStream = new EventStream([{ eventStreamTarget: messageTarget, targetType:threadid },{eventStreamTarget:prevMessageTarget,targetType:'previousMessages'}]);
+
+			let prevMessages=db.query<[number,string,number,
+			number,string,
+			number,string
+			]>(`SELECT messages.id,messages.content,messages.timestamp,			
+			messages.threadid,threads.title,
+			messages.authorid,users.name
+			FROM messages join users on users.id=messages.authorid JOIN threads ON threads.id=messages.threadid WHERE threadid=?`,[threadidNum])
+			for (let m of prevMessages)
+
+			prevMessages.forEach((m)=>{
+				let mData:MessageEventData={
+					id:m[0],
+					content:m[1],
+					timestamp:m[2],
+					threadid:m[3],
+					threadTitle:m[4],
+					user:{
+						id:m[5],
+						name:m[6],
+					}
+				}
+				prevMessageTarget.sendMessage('previousMessages',mData);
+			})
+			
+
+
 			await requestEvent.respondWith(eventStream.generateResponse()).catch(() => {
 				eventStream.stopBrodcast();
 			})

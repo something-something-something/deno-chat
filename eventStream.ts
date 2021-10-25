@@ -54,7 +54,7 @@ export class EventStream {
 
 			},
 			cancel() {
-				evs.stopBrodcast;
+				evs.stopBrodcast();
 			},
 		});
 	}

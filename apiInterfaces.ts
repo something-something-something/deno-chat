@@ -10,7 +10,7 @@ export interface ThreadEventData{
 }
 
 export interface MessageEventData{
-	username:{
+	user:{
 		id:number;
 		name:string;
 	}
@@ -20,7 +20,7 @@ export interface MessageEventData{
 	threadid:number;
 	threadTitle:string;
 }
-
+//TODO: apikey should go in headers
 export interface StandardAPIRequest{
 	apikey:string;
 	uuid:string;

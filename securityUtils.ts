@@ -19,6 +19,8 @@ export function generateApiKey(){
 	buf=crypto.getRandomValues(buf);
 	return btoa( String.fromCharCode(...buf));
 }
+
+//TODO Move apikeys to headers
 //TODO make sure variable:true is okay
 export function getApiKeyStatus(db:DB,uuid:string,apikey:string):{valid:true,userid:number}|{valid:false}{
 	let result=db.query('SELECT apikeys.uuid,apikeys.hashedKey,users.id FROM apikeys LEFT JOIN users ON users.id=apikeys.userid WHERE apikeys.uuid=?',[uuid]);
